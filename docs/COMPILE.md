@@ -2,15 +2,42 @@ Compiling/Installing
 ----
 
 #### Debian-based Linux 
-You can use [@Itai-Nelken](https://github.com/Itai-Nelken)'s apt repository to install precompiled box86 debs, updated weekly. 
+You can use the [Pi-Apps-Coders apt repository](https://github.com/Pi-Apps-Coders/box86-debs) to install precompiled box86 debs, updated every 24 hours. 
 
 ```
-sudo wget https://itai-nelken.github.io/weekly-box86-debs/debian/box86.list -O /etc/apt/sources.list.d/box86.list
-wget -qO- https://itai-nelken.github.io/weekly-box86-debs/debian/KEY.gpg | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/box86-debs-archive-keyring.gpg
-sudo apt update && sudo apt install box86 -y
+# check if .list file already exists
+if [ -f /etc/apt/sources.list.d/box86.list ]; then
+  sudo rm -f /etc/apt/sources.list.d/box86.list || exit 1
+fi
+# check if .sources file already exists
+if [ -f /etc/apt/sources.list.d/box86.sources ]; then
+  sudo rm -f /etc/apt/sources.list.d/box86.sources || exit 1
+fi
+# download gpg key from specified url
+if [ -f /usr/share/keyrings/box86-archive-keyring.gpg ]; then
+  sudo rm -f /usr/share/keyrings/box86-archive-keyring.gpg
+fi
+sudo mkdir -p /usr/share/keyrings
+wget -qO- "https://pi-apps-coders.github.io/box86-debs/KEY.gpg" | sudo gpg --dearmor -o /usr/share/keyrings/box86-archive-keyring.gpg
+# create .sources file
+echo "Types: deb
+URIs: https://Pi-Apps-Coders.github.io/box86-debs/debian
+Suites: ./
+Signed-By: /usr/share/keyrings/box86-archive-keyring.gpg" | sudo tee /etc/apt/sources.list.d/box86.sources >/dev/null
 ```
 
-**Note:** On a 64bit OS, install the `box86:armhf` package.
+On a 32bit OS, run the following additional commands
+```
+sudo apt update
+sudo apt install box86-generic-arm -y
+```
+
+On a 64bit OS, run the following additional commands
+```
+sudo dpkg --add-architecture armhf
+sudo apt update
+sudo apt install box86-generic-arm:armhf -y
+```
 
 Alternatively, you can generate your own package using the [instructions below](https://github.com/ptitSeb/box86/blob/master/docs/COMPILE.md#debian-packaging). 
 
@@ -60,9 +87,9 @@ sudo make install
 sudo systemctl restart systemd-binfmt
 ```
 
-#### for ODROID
+#### for ODROID-XU3/XU4/MC1/HC1/HC2
 
-`mkdir build; cd build; cmake .. -DODROID=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo; make -j3`
+`mkdir build; cd build; cmake .. -DODROIDXU4=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo; make -j3`
 
 #### for RK3399
 
@@ -80,11 +107,11 @@ As most RK3588 devices run an AARCH64 OS, you'll need an `armhf` multiarch envir
 
 Also, on armbian, you may need to install `libc6-dev-armhf-cross` or you may have an issue with `crt1.o` and a few other files not included with box86.
 
-#### for ODROID N2/N2+
+#### for ODROID-N2/N2+
 
 `mkdir build; cd build; cmake .. -DODROIDN2=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo; make -j3`
 
-As most ODROID N2/N2+ devices run an AARCH64 OS, you'll need an `armhf` multiarch environment, and an armhf gcc: On debian, install it with `sudo apt install gcc-arm-linux-gnueabihf`. 
+As most ODROID-N2/N2+ devices run an AARCH64 OS, you'll need an `armhf` multiarch environment, and an armhf gcc: On debian, install it with `sudo apt install gcc-arm-linux-gnueabihf`. 
 
 Also, on armbian, you may need to install `libc6-dev-armhf-cross` or you may have an issue with `crt1.o` and a few other files not included with box86.
 
@@ -172,7 +199,7 @@ Dynarec is only available on the ARM architecture (for the meantime anyways). Ac
 
 You will most likely need `-marm` in compilation flags (Many compilers default to the Thumb instruction set and Dynarec does not support this).
 
-###### *Note: If you get error building that "target CPU does not support ARM mode", then try to pick a hardware profile (like ODROID for armv7 or PI4 for armv8).*
+###### *Note: If you get error building that "target CPU does not support ARM mode", then try to pick a hardware profile (like ODROIDXU4 for armv7 or PI4 for armv8).*
 
 ##### 64bit OS with Dynarec
 
