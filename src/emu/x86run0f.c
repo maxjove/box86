@@ -229,6 +229,15 @@ uintptr_t Run0F(x86emu_t *emu, uintptr_t addr, int *step)
             nextop = F8;
             GET_ED_;
             break;
+        case 0x20:                      /* MOV REG, crX */
+        case 0x21:                      /* MOV REG, drX */
+        case 0x22:                      /* MOV cxR, REG */
+        case 0x23:                      /* MOV drX, REG */
+            // this is a privilege opcode...
+            #ifndef TEST_INTERPRETER
+            emit_signal(emu, SIGSEGV, (void*)R_EIP, 0);
+            #endif
+            break;
 
         case 0x28:                      /* MOVAPS Gx,Ex */
             nextop = F8;
@@ -261,7 +270,7 @@ uintptr_t Run0F(x86emu_t *emu, uintptr_t addr, int *step)
                 GM.sd[1] = 0x80000000;
             else
                 GM.sd[1] = EX->f[1];
-            if(isnanf(EX->f[0]) || isinff(EX->f[0]) || EX->f[0]>=(float)0x80000000U || EX->f[1]<-(float)0x80000000U)
+            if(isnanf(EX->f[0]) || isinff(EX->f[0]) || EX->f[0]>=(float)0x80000000U || EX->f[0]<-(float)0x80000000U)
                 GM.sd[0] = 0x80000000;
             else
                 GM.sd[0] = EX->f[0];

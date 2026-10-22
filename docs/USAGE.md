@@ -30,7 +30,7 @@ Disables Box86 printing its version and build
 
 #### BOX86_LD_LIBRARY_PATH *
 Path to look for x86 libraries. Default is current folder and `lib` in current folder.
-Also, `/usr/lib/i386-linux-gnu` and `/lib/i386-linux-gnu` are added if they exist.
+Also, `/usr/lib/i386-linux-gnu`, `/lib/i386-linux-gnu`, and `/usr/lib/box86-i386-linux-gnu` are added if they exist.
 
 #### BOX86_PATH *
 Path to look for x86 executable. Default is current folder and `bin` in current folder.
@@ -206,6 +206,11 @@ Handling of x87 80bits long double
 * 0 : Try to handle 80bits long double as precise as possible (Default)
 * 1 : Handle them as double
 
+#### BOX86_MAXCPU
+Maximum CPU Core exposed
+* 0 : Don't cap the number of cpu core exposed (Default)
+* XXX : Cap the maximum CPU Core exposed to XXX (usefull with wine64 or GridAutosport for example)
+
 #### BOX86_LIBCEF *
 Detect libcef and apply malloc_hack settings
 * 0 : Don't detect libcef
@@ -270,6 +275,11 @@ Disables the load of vulkan libraries.
  * 0 : Load vulkan libraries if found.
  * 1 : Disables the load of vulkan libraries, both the native and the i386 version (can be useful on Pi4, where the vulkan driver is not quite there yet.)
 
+#### BOX86_NOCRASHHANDLER *
+Diables crashhandler.so
+* 0 : Regular process for crashhandler.so (Default)
+* 1 : Do not load crashhandler.so, even if present
+
 #### BOX86_FUTEX_WAITV *
 Use of the new fuext_waitc syscall
  * 0 : Do not try to use it, return unsupported (Default for BAD_SIGNAL build)
@@ -282,6 +292,11 @@ Use of the new fuext_waitc syscall
 #### BOX86_ENV1
  * XXX=yyyy
  will add XXX=yyyy env. var. and continue with BOX86_ENV2 ... until var doesn't exist
+
+#### BOX86_ARG0
+Define argv[0] of the executable.
+ * yyyy
+Will rewrite argv[0] instead of using program path.
 
 #### BOX86_FIX_64BIT_INODES *
 Fix/Don't fix 64bit inodes
@@ -306,7 +321,7 @@ Will use yyyy as x86 bash to launch script. yyyy needs to be a full path to a va
 #### BOX86_BOX64
 Define where to find box64 binary
  * yyyy
-Will use yyyy as x86_64 interpretor, to launch x64_64 binaries
+Will use yyyy as x86_64 interpreter, to launch x64_64 binaries
 
 #### BOX86_JITGDB *
 

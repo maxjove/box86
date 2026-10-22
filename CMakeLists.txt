@@ -11,17 +11,18 @@ option(GOA_CLONE "Set to ON if targeting GO Advance clones, like RG351p/v, Gamef
 option(RK3288 "Set to ON if targeting an Rockchip RK3288 based device" ${RK3288})
 option(RK3399 "Set to ON if targeting an Rockchip RK3399 based device" ${RK3399})
 option(RK3588 "Set to ON if targeting an Rockchip RK3588 / RK3588S based device" ${RK3588})
-option(ODROIDN2 "Set to ON if targeting an Odroid-N2 device" ${ODROIDN2})
+option(ODROIDN2 "Set to ON if targeting an ODROID-N2 device" ${ODROIDN2})
 option(TEGRAX1 "Set to ON if targeting an Tegra X1 (ARM64) based device" ${TEGRAX1})
 option(TEGRAX1ARM32 "Set to ON if targeting an Tegra X1 (ARM32) based device" ${TEGRAX1ARM32})
 option(TEGRA_T194 "Set to ON if targeting an Tegra Xavier based device" ${TEGRA_T194})
 option(TEGRA_T234 "Set to ON if targeting an Tegra Orin based device" ${TEGRA_T234})
 option(PHYTIUM "Set to ON if targeting an Phytium (D2000 or FT2000/4) based device" ${PHYTIUM})
 option(GAMESHELL "Set to ON if targeting a GameShell device" ${GAMESHELL})
-option(ODROID "Set to ON if targeting an ODroid device" ${ODROID})
+option(ODROIDXU4 "Set to ON if targeting an ODROID-XU4 device" ${ODROIDXU4})
 option(POWER9 "Set to ON if targeting a POWER9 processor" ${POWER9})
-option(SD845 "Set to ON if targeting a Snapragon 845 based device" ${SD845})
-option(SD888 "Set to ON if targeting a Snapragon 888 based device" ${SD888})
+option(SD845 "Set to ON if targeting a Snapdragon 845 based device" ${SD845})
+option(SD865 "Set to ON if targeting a Snapdragon 865 based device" ${SD865})
+option(SD888 "Set to ON if targeting a Snapdragon 888 based device" ${SD888})
 option(ADLINK "Set to ON if targeting an ADLink AmpereAltra based device" ${ADLINK})
 option(A64 "Set to ON if targeting an Allwinner A64 based device" ${A64})
 option(ARM64 "Set to ON if targeting a generic ARM64 based device" ${ARM64})
@@ -37,7 +38,7 @@ option(NOGIT "Set to ON if not building from a git clone repo (like when buildin
 option(NO_LIB_INSTALL "Set ON to not install a few x86 libs that are used by many program" ${NO_LIB_INSTALL})
 option(NO_CONF_INSTALL "Set ON to not install config files" ${NO_CONF_INSTALL})
 
-if(PANDORA OR PYRA OR RPI2 OR RPI3 OR RPI4 OR GAMESHELL OR ODROID OR GOA_CLONE OR RK3288 OR RK3399 OR ODROIDN2 OR TEGRAX1 OR TEGRAX1ARM32 OR TEGRA_T194 OR TEGRA_T234 OR RPI3ARM64 OR RPI4ARM64 OR PHYTIUM OR SD845 OR SD888 OR ADLINK OR A64 OR LX2160A OR ARM64 OR RK3588)
+if(PANDORA OR PYRA OR RPI2 OR RPI3 OR RPI4 OR GAMESHELL OR ODROIDXU4 OR GOA_CLONE OR RK3288 OR RK3399 OR ODROIDN2 OR TEGRAX1 OR TEGRAX1ARM32 OR TEGRA_T194 OR TEGRA_T234 OR RPI3ARM64 OR RPI4ARM64 OR PHYTIUM OR SD845 OR SD865 OR SD888 OR ADLINK OR A64 OR LX2160A OR ARM64 OR RK3588)
     set(LD80BITS OFF CACHE BOOL "")
     set(NOALIGN OFF CACHE BOOL "")
     set(ARM_DYNAREC ON CACHE BOOL "")
@@ -76,22 +77,28 @@ else()
 endif()
 
 cmake_host_system_information(RESULT CMAKE_HOST_SYSTEM_PROCESSOR QUERY OS_PLATFORM)
-string(COMPARE EQUAL "${CMAKE_HOST_SYSTEM_PROCESSOR}" "i686"  _x86)
-string(COMPARE EQUAL "${CMAKE_HOST_SYSTEM_PROCESSOR}" "x86_64"  _x86_64)
-string(COMPARE EQUAL "${CMAKE_HOST_SYSTEM_PROCESSOR}" "aarch64"  _aarch64)
-string(COMPARE EQUAL "${CMAKE_HOST_SYSTEM_PROCESSOR}" "armhf"  _armhf)
-string(COMPARE EQUAL "${CMAKE_HOST_SYSTEM_PROCESSOR}" "arm"  _arm)
-string(COMPARE EQUAL "${CMAKE_HOST_SYSTEM_PROCESSOR}" "armv8l"  _armv8l)
 
-if(_aarch64 AND (RK3399 OR ODROIDN2 OR TEGRAX1 OR TEGRA_T194 OR TEGRA_T234 OR RPI3ARM64 OR RPI4ARM64 OR PHYTIUM OR SD845 OR SD888 OR ADLINK OR A64 OR LX2160A OR RK3588 OR ARM64))
-    set(CMAKE_C_COMPILER arm-linux-gnueabihf-gcc)
-    #set(CMAKE_ASM_COMPILER arm-linux-gnueabihf-as) #will use gcc in fact
-    set(CMAKE_C_COMPILER_TARGET arm-linux-gnueabihf)
+if("${CMAKE_HOST_SYSTEM_PROCESSOR}" STREQUAL "aarch64" AND (RK3399 OR ODROIDN2 OR TEGRAX1 OR TEGRA_T194 OR TEGRA_T234 OR RPI3ARM64 OR RPI4ARM64 OR PHYTIUM OR SD845 OR SD888 OR ADLINK OR A64 OR LX2160A OR RK3588 OR ARM64))
+    set(COMPILER_TRIPLE arm-linux-gnueabihf-gcc)
+    find_program(COMPILER_FOUND ${COMPILER_TRIPLE})
+    
+    if(COMPILER_FOUND)
+        set(CMAKE_C_COMPILER ${COMPILER_FOUND})
+    else()
+        message(STATUS "Cross compiler ${COMPILER_TRIPLE} not found, using CC or -DCMAKE_C_COMPILER")
+    endif()
 endif()
 
 project(box86 C ASM)
 
 enable_testing()
+
+string(COMPARE EQUAL "${CMAKE_SYSTEM_PROCESSOR}" "i686"  _x86)
+string(COMPARE EQUAL "${CMAKE_SYSTEM_PROCESSOR}" "x86_64"  _x86_64)
+string(COMPARE EQUAL "${CMAKE_SYSTEM_PROCESSOR}" "aarch64"  _aarch64)
+string(COMPARE EQUAL "${CMAKE_SYSTEM_PROCESSOR}" "armhf"  _armhf)
+string(COMPARE EQUAL "${CMAKE_SYSTEM_PROCESSOR}" "arm"  _arm)
+string(COMPARE EQUAL "${CMAKE_SYSTEM_PROCESSOR}" "armv8l"  _armv8l)
 
 set(default_build_type "RelwithDebInfo")
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -137,10 +144,10 @@ elseif(RPI4ARM64)
     add_definitions(-DRPI4ARM64)
     add_definitions(-marm -march=armv8-a+crc -mtune=cortex-a72 -mfpu=neon-fp-armv8 -mfloat-abi=hard)
     set(CMAKE_ASM_FLAGS  "-marm -march=armv8-a+crc -mtune=cortex-a72 -mfpu=neon-fp-armv8 -mfloat-abi=hard")
-elseif(ODROID)
-    add_definitions(-DODROID)
-    add_definitions(-mcpu=cortex-a9 -mfpu=neon-vfpv4 -mfloat-abi=hard -marm)
-    set(CMAKE_ASM_FLAGS  "-marm -mcpu=cortex-a9 -mfpu=neon-vfpv4 -mfloat-abi=hard")
+elseif(ODROIDXU4)
+    add_definitions(-DODROIDXU4)
+    add_definitions(-marm -mcpu=cortex-a15.cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard)
+    set(CMAKE_ASM_FLAGS  "-marm -mcpu=cortex-a15.cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard")
 elseif(RK3288)
     add_definitions(-DRK3288)
     add_definitions(-mcpu=cortex-a17 -mfpu=neon -mfloat-abi=hard -marm)
@@ -149,6 +156,11 @@ elseif(SD845)
     add_definitions(-DSD845)
     add_definitions(-marm -march=armv8.2-a+simd+crypto -mtune=cortex-a75.cortex-a55 -mfpu=neon-fp-armv8 -mfloat-abi=hard)
     set(CMAKE_ASM_FLAGS  "-marm -march=armv8.2-a+simd+crypto -mtune=cortex-a75.cortex-a55 -mfpu=neon-fp-armv8 -mfloat-abi=hard")
+elseif(SD865)
+    add_definitions(-DSD865)
+    #note that cortex-a77.cortex-a55 is not supported, so fall back to a76 instead
+    add_definitions(-marm -march=armv8.2-a+simd+crypto -mtune=cortex-a76.cortex-a55 -mfpu=neon-fp-armv8 -mfloat-abi=hard)
+    set(CMAKE_ASM_FLAGS  "-marm -march=armv8.2-a+simd+crypto -mtune=cortex-a76.cortex-a55 -mfpu=neon-fp-armv8 -mfloat-abi=hard")
 elseif(SD888)
     add_definitions(-DSD888)
     add_definitions(-marm -march=armv8.4-a+simd+crypto -mfpu=neon-fp-armv8 -mfloat-abi=hard)
@@ -238,6 +250,12 @@ else()
     set(BOX86 box86)
 endif()
 
+try_compile(HAVE_ST_INO ${CMAKE_BINARY_DIR}/compile_tests ${CMAKE_SOURCE_DIR}/tests/test_st_ino.c)
+
+if(HAVE_ST_INO)
+  message("stat64 has __st_info field")
+  add_definitions(-DHAVE_ST_INO)
+endif()
 
 set(BOX86_ELF_ADDRESS "0x62800000")
 
@@ -345,6 +363,7 @@ set(ELFLOADER_SRC
     "${BOX86_ROOT}/src/libtools/auxval.c"
     "${BOX86_ROOT}/src/libtools/myalign.c"
     "${BOX86_ROOT}/src/libtools/myalign64.c"
+    "${BOX86_ROOT}/src/libtools/myalignsys64.c"
     "${BOX86_ROOT}/src/libtools/stat64_helper.c"
     "${BOX86_ROOT}/src/libtools/myfts.c"
     "${BOX86_ROOT}/src/libtools/sdl1rwops.c"
@@ -394,6 +413,7 @@ set(WRAPPEDS
     "${BOX86_ROOT}/src/wrapped/wrappedlibbsd.c"
     "${BOX86_ROOT}/src/wrapped/wrappedlibgl.c"
     "${BOX86_ROOT}/src/wrapped/wrappedlibglu.c"
+    "${BOX86_ROOT}/src/wrapped/wrappedlibglx.c"
     "${BOX86_ROOT}/src/wrapped/wrappedlibx11.c"
     "${BOX86_ROOT}/src/wrapped/wrappedlibasound.c"
     "${BOX86_ROOT}/src/wrapped/wrappedlibdl.c"
@@ -789,20 +809,21 @@ if(NOT _x86 AND NOT _x86_64)
 		install(FILES ${CMAKE_SOURCE_DIR}/system/box86.box86rc DESTINATION ${TERMUX_PATH}/usr/etc/)
 	endif()
   endif()
+  set(INSTALL_PATH "/usr/lib/box86-i386-linux-gnu/")
   if(NOT NO_LIB_INSTALL)
     if(NOT TERMUX)
-    	install(FILES ${CMAKE_SOURCE_DIR}/x86lib/libstdc++.so.6 DESTINATION /usr/lib/i386-linux-gnu/)
-    	install(FILES ${CMAKE_SOURCE_DIR}/x86lib/libstdc++.so.5 DESTINATION /usr/lib/i386-linux-gnu/)
-    	install(FILES ${CMAKE_SOURCE_DIR}/x86lib/libgcc_s.so.1 DESTINATION /usr/lib/i386-linux-gnu/)
-    	install(FILES ${CMAKE_SOURCE_DIR}/x86lib/libpng12.so.0 DESTINATION /usr/lib/i386-linux-gnu/)
-    	install(FILES ${CMAKE_SOURCE_DIR}/x86lib/libunwind.so.8 DESTINATION /usr/lib/i386-linux-gnu/)
+    	install(FILES ${CMAKE_SOURCE_DIR}/x86lib/libstdc++.so.6 DESTINATION ${INSTALL_PATH})
+    	install(FILES ${CMAKE_SOURCE_DIR}/x86lib/libstdc++.so.5 DESTINATION ${INSTALL_PATH})
+    	install(FILES ${CMAKE_SOURCE_DIR}/x86lib/libgcc_s.so.1 DESTINATION ${INSTALL_PATH})
+    	install(FILES ${CMAKE_SOURCE_DIR}/x86lib/libpng12.so.0 DESTINATION ${INSTALL_PATH})
+    	install(FILES ${CMAKE_SOURCE_DIR}/x86lib/libunwind.so.8 DESTINATION ${INSTALL_PATH})
     else()
 
-	    install(FILES ${CMAKE_SOURCE_DIR}/x86lib/libstdc++.so.6 DESTINATION ${TERMUX_PATH}/usr/lib/i386-linux-gnu/)
-	    install(FILES ${CMAKE_SOURCE_DIR}/x86lib/libstdc++.so.5 DESTINATION ${TERMUX_PATH}/usr/lib/i386-linux-gnu/)
-	    install(FILES ${CMAKE_SOURCE_DIR}/x86lib/libgcc_s.so.1 DESTINATION ${TERMUX_PATH}/usr/lib/i386-linux-gnu/)
-	    install(FILES ${CMAKE_SOURCE_DIR}/x86lib/libpng12.so.0 DESTINATION ${TERMUX_PATH}/usr/lib/i386-linux-gnu/)
-	    install(FILES ${CMAKE_SOURCE_DIR}/x86lib/libunwind.so.8 DESTINATION ${TERMUX_PATH}/usr/lib/i386-linux-gnu/)
+	    install(FILES ${CMAKE_SOURCE_DIR}/x86lib/libstdc++.so.6 DESTINATION ${TERMUX_PATH}${INSTALL_PATH})
+	    install(FILES ${CMAKE_SOURCE_DIR}/x86lib/libstdc++.so.5 DESTINATION ${TERMUX_PATH}${INSTALL_PATH})
+	    install(FILES ${CMAKE_SOURCE_DIR}/x86lib/libgcc_s.so.1 DESTINATION ${TERMUX_PATH}${INSTALL_PATH})
+	    install(FILES ${CMAKE_SOURCE_DIR}/x86lib/libpng12.so.0 DESTINATION ${TERMUX_PATH}${INSTALL_PATH})
+	    install(FILES ${CMAKE_SOURCE_DIR}/x86lib/libunwind.so.8 DESTINATION ${TERMUX_PATH}${INSTALL_PATH})
     endif()
   endif()
 endif()

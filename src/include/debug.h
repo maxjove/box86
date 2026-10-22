@@ -10,6 +10,8 @@ extern int box86_dynarec;
 extern uintptr_t box86_pagesize;
 extern uintptr_t box86_load_addr;
 extern int box86_showbt;
+extern int box86_maxcpu;
+extern int box86_maxcpu_immutable;
 #ifdef DYNAREC
 extern int box86_dynarec_dump;
 extern int box86_dynarec_trace;
@@ -59,6 +61,7 @@ extern int box86_musl;
 extern int box86_nopulse;   // disabling the use of wrapped pulseaudio
 extern int box86_nogtk; // disabling the use of wrapped gtk
 extern int box86_novulkan;  // disabling the use of wrapped vulkan
+extern int box86_nocrashhandler;
 extern int box86_futex_waitv;
 extern int box86_mapclean;
 extern int box86_showsegv;

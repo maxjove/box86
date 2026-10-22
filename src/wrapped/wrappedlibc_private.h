@@ -293,6 +293,7 @@ GO2(execlp, iFpV, execvp)
 GOWM(execv, iFEpp)     //%%
 GOM(execve, iFEppp)   //%% and this one too...
 GOWM(execvp, iFEpp)
+GOWM(execvpe, iFEppp)
 GOM(exit, vFEi)
 GOM(_exit, vFEi)
 GOWM(_Exit, vFEi)
@@ -417,7 +418,7 @@ GO(__fsetlocking, iFpi)
 GO(fsetpos, iFpp)
 GO(fsetpos64, iFpp)
 GO(fsetxattr, iFippui)
-GOW(fstatfs, iFip)
+GOWM(fstatfs, iFip)      //%%,noE
 GOWM(fstatfs64, iFip)    //%%,noE
 GO(fstatvfs, iFip)
 GOW(fstatvfs64, iFip)   // alignment?
@@ -1281,20 +1282,20 @@ GO(posix_fallocate64, iFiII)
 GOW(posix_memalign, iFpLL)
 // posix_openpt // Weak
 GO(posix_spawn, iFpppppp)
-// posix_spawnattr_destroy
-// posix_spawnattr_getflags
-// posix_spawnattr_getpgroup
-// posix_spawnattr_getschedparam
-// posix_spawnattr_getschedpolicy
-// posix_spawnattr_getsigdefault
-// posix_spawnattr_getsigmask
-// posix_spawnattr_init
-// posix_spawnattr_setflags
-// posix_spawnattr_setpgroup
-// posix_spawnattr_setschedparam
-// posix_spawnattr_setschedpolicy
-// posix_spawnattr_setsigdefault
-// posix_spawnattr_setsigmask
+GOW(posix_spawnattr_destroy, iFp)
+GO(posix_spawnattr_getflags, iFpp)
+GO(posix_spawnattr_getpgroup, iFpp)
+GO(posix_spawnattr_getschedparam, iFpp)
+GO(posix_spawnattr_getschedpolicy, iFpp)
+GO(posix_spawnattr_getsigdefault, iFpp)
+GO(posix_spawnattr_getsigmask, iFpp)
+GOW(posix_spawnattr_init, iFp)
+GOW(posix_spawnattr_setflags, iFpw)
+GO(posix_spawnattr_setpgroup, iFpi)
+GO(posix_spawnattr_setschedparam, iFpp)
+GO(posix_spawnattr_setschedpolicy, iFpi)
+GOW(posix_spawnattr_setsigdefault, iFpp)
+GOW(posix_spawnattr_setsigmask, iFpp)
 GO(posix_spawn_file_actions_addclose, iFpi)
 GO(posix_spawn_file_actions_adddup2, iFpii)
 GO(posix_spawn_file_actions_addopen, iFpipii)
@@ -1509,6 +1510,7 @@ GOW(send, lFipLi)
 GO(sendfile, lFiipL)
 GO(sendfile64, lFiipL)
 GOW(sendmsg, lFipi)
+GO2(sendmmsg, iFEipuu, my___sendmmsg)
 GOM(__sendmmsg, iFEipuu)    //%% actual __sendmmsg is glibc 2.14+. The syscall is Linux 3.0+, so use syscall...
 GOW(sendto, lFipLipu)
 // setaliasent
@@ -1573,6 +1575,7 @@ GO(setxattr, iFpppui)
 // sgetspent_r  // Weak
 GOW(shmat, pFipi)
 GOW(shmctl, iFiip)
+GO(__shmctl64, iFiip)
 GOW(shmdt, iFp)
 GOW(shmget, iFuui)
 GOW(shutdown, iFii)
@@ -1644,7 +1647,7 @@ GO2(sscanf, iFppV, vsscanf)     // sscanf va_list is only pointer, no realign to
 GOM(__stack_chk_fail, vFEv) //%%
 GOM(lstat64, iFEpp)
 GOM(stat64, iFEpp)
-GOW(statfs, iFpp)
+GOWM(statfs, iFpp)       //%%,noE
 // __statfs
 GOWM(statfs64, iFpp)     //%%,noE
 GO(statvfs, iFpp)
@@ -1742,13 +1745,13 @@ GO2(__isoc23_strtol, lFppi, strtol)
 #ifdef HAVE_LD80BITS
 GO(strtold, DFpp)
 GO(__strtold_internal, DFppi)
-GO(__strtold_l, DFppip)
-GOW(strtold_l, DFppu)
+GO(__strtold_l, DFppp)
+GOW(strtold_l, DFppp)
 #else
 GO(strtold, KFpp)
 GO2(__strtold_internal, KFppi, __strtod_internal)
-GO2(__strtold_l, KFppip, __strtod_l)
-GOW2(strtold_l, KFppu, strtod_l)
+GO2(__strtold_l, KFppp, __strtod_l)
+GOW2(strtold_l, KFppp, strtod_l)
 #endif
 GO(__strtol_internal, lFppi)
 GO(strtoll, IFppi)
@@ -2240,9 +2243,11 @@ GO(asctime64_r, pFpp)
 GO(ctime64, pFp)
 GO(ctime64_r, pFpp)
 GO(gmtime64, pFp)
+GOM(__fcntl_time64, iFEiiN) //%%
 GO(gmtime64_r, pFpp)
 GO(localtime64, pFpp)
 GO(localtime64_r, pFpp)
+GO(__ppoll64, iFpupp)
 GO(__clock_gettime64, iFpp)
 GO(__stat_time64, iFpp)  //needs alignement?
 GO(__fstat_time64, iFip)
@@ -2289,17 +2294,14 @@ GO(dummy_safer_scalable_aligned_realloc, pFpLLp)    // for mallochook.c
 
 #ifdef ANDROID
 GOM(__libc_init, vFEpppp)
-GOM(stat, iFpp)             //%noE
-GOM(lstat, iFpp)            //%noE
-GOM(fstat, iFip)            //%noE
 GO(__errno, pFv)
 #include "wrappedlibpthread_private.h"
 #include "wrappedlibrt_private.h"
 #else
 // Those symbols don't exist in non-Android builds
 //GOM(__libc_init,
-//GOM(stat,
-//GOM(lstat,
-//GOM(fstat,
 //GO(__errno,
 #endif
+GOM(stat, iFpp)             //%noE
+GOM(lstat, iFpp)            //%noE
+GOM(fstat, iFip)            //%noE

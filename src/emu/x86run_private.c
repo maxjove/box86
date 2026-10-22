@@ -812,7 +812,10 @@ uintptr_t GetSegmentBaseEmu(x86emu_t* emu, int seg)
 
 const char* getAddrFunctionName(uintptr_t addr)
 {
-    static char ret[1000];
+    static char rets[8][1000];
+    static int idx = 0;
+    char* ret = rets[idx];
+    idx = (idx+1)&7;
     uint32_t sz = 0;
     uintptr_t start = 0;
     elfheader_t* elf = FindElfAddress(my_context, addr);
@@ -920,7 +923,11 @@ void PrintTrace(x86emu_t* emu, uintptr_t ip, int dynarec)
             if(peek==0xC3 || peek==0xC2) {
                 printf_log(LOG_NONE, " => %p", *(void**)(R_ESP));
                 printFunctionAddr(*(uintptr_t*)(R_ESP), "=> ");
-            } else if(peek==0x55) {
+            } else if(peek==0x55 || peek==0x57 || peek==0x53) {
+                printf_log(LOG_NONE, " => STACK_TOP: %p", *(void**)(R_ESP));
+                printFunctionAddr(*(uintptr_t*)(R_ESP), "top:");
+                printFunctionAddr(ip, "here: ");
+            } else if(peek==0x83 && PK(1)==0xEC) {
                 printf_log(LOG_NONE, " => STACK_TOP: %p", *(void**)(R_ESP));
                 printFunctionAddr(*(uintptr_t*)(R_ESP), "top:");
                 printFunctionAddr(ip, "here: ");

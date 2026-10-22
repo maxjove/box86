@@ -607,12 +607,12 @@ void my_sigactionhandler_oldcode(int32_t sig, int simple, int Locks, siginfo_t* 
             sigcontext->uc_mcontext.gregs[REG_TRAPNO] = ((info->si_code==SEGV_ACCERR) || (info->si_errno==0x1234) || ((uintptr_t)info->si_addr==0))?13:14;
         } else if((info->si_code==SEGV_ACCERR) && !(prot&PROT_WRITE)) {
             sigcontext->uc_mcontext.gregs[REG_ERR] = 0x0002;    // write flag issue
-            if(abs((intptr_t)info->si_addr-(intptr_t)sigcontext->uc_mcontext.gregs[REG_ESP])<8)
+            sigcontext->uc_mcontext.gregs[REG_TRAPNO] = 14;
+        } else {
+            if((info->si_code!=SEGV_ACCERR) && abs((intptr_t)info->si_addr-(intptr_t)sigcontext->uc_mcontext.gregs[REG_ESP])<8)
                 sigcontext->uc_mcontext.gregs[REG_TRAPNO] = 12; // stack overflow probably
             else
-                sigcontext->uc_mcontext.gregs[REG_TRAPNO] = 14;
-        } else {
-            sigcontext->uc_mcontext.gregs[REG_TRAPNO] = (info->si_code==SEGV_ACCERR)?13:14;
+                sigcontext->uc_mcontext.gregs[REG_TRAPNO] = (info->si_code==SEGV_ACCERR)?13:14;
             //REG_ERR seems to be INT:8 CODE:8. So for write access segfault it's 0x0002 For a read it's 0x0004 (and 8 for exec). For an int 2d it could be 0x2D01 for example
             sigcontext->uc_mcontext.gregs[REG_ERR] = 0x0004;    // read error? there is no execute control in box86 anyway, and no easy way to see if it's a write error
         }
@@ -1005,10 +1005,9 @@ exit(-1);
             esp = (void*)p->uc_mcontext.arm_r8;
         }
 #endif
-        x86name = getAddrFunctionName(x86pc);
         elfheader_t* elf = FindElfAddress(my_context, x86pc);
         if(elf)
-            elfname = ElfName(elf);
+            x86name = getAddrFunctionName(x86pc);
         if(jit_gdb) {
             pid_t pid = getpid();
             int v = fork(); // is this ok in a signal handler???
@@ -1039,8 +1038,8 @@ exit(-1);
         uint32_t hash = 0;
         if(db && ((addr<db->x86_addr || addr>(db->x86_addr+db->x86_size)) || (prot&PROT_READ)))
             hash = X31_hash_code(db->x86_addr, db->x86_size);
-        printf_log(log_minimum, "%04d|%s @%p (%s) (x86pc=%p/%s:\"%s\", esp=%p, stack=%p:%p own=%p fp=%p), for accessing %p (code=%d/prot=%x), db=%p(%p:%p/%p:%p/%s:%s, hash:%x/%x)", 
-            GetTID(), signame, pc, name, (void*)x86pc, elfname?elfname:"???", x86name?x86name:"???", esp, 
+        printf_log(log_minimum, "%04d|%s @%p (%s) (x86pc=%p/\"%s\", esp=%p, stack=%p:%p own=%p fp=%p), for accessing %p (code=%d/prot=%x), db=%p(%p:%p/%p:%p/%s:%s, hash:%x/%x)", 
+            GetTID(), signame, pc, name, (void*)x86pc, x86name?x86name:"???", esp, 
             emu->init_stack, emu->init_stack+emu->size_stack, emu->stack2free, (void*)R_EBP, 
             addr, info->si_code, prot, db, db?db->block:0, db?(db->block+db->size):0, 
             db?db->x86_addr:0, db?(db->x86_addr+db->x86_size):0, 
@@ -1060,7 +1059,7 @@ exit(-1);
         #warning TODO
 #endif
 #else
-        printf_log(log_minimum, "%04d|%s @%p (%s) (x86pc=%p/%s:\"%s\", esp=%p), for accessing %p (code=%d)", GetTID(), signame, pc, name, (void*)x86pc, elfname?elfname:"???", x86name?x86name:"???", esp, addr, info->si_code);
+        printf_log(log_minimum, "%04d|%s @%p (%s) (x86pc=%p/\"%s\", esp=%p), for accessing %p (code=%d)", GetTID(), signame, pc, name, (void*)x86pc, x86name?x86name:"???", esp, addr, info->si_code);
 #endif
         if(sig==SIGILL) {
             printf_log(log_minimum, " opcode=%02X %02X %02X %02X %02X %02X %02X %02X", ((uint8_t*)pc)[0], ((uint8_t*)pc)[1], ((uint8_t*)pc)[2], ((uint8_t*)pc)[3], ((uint8_t*)pc)[4], ((uint8_t*)pc)[5], ((uint8_t*)pc)[6], ((uint8_t*)pc)[7]);
@@ -1381,8 +1380,8 @@ EXPORT int my_getcontext(x86emu_t* emu, void* ucp)
     u->uc_mcontext.gregs[REG_CS] = R_CS;
     u->uc_mcontext.gregs[REG_SS] = R_SS;
     // get FloatPoint status
-    if(u->uc_mcontext.fpregs)
-        save_fpreg(emu, u->uc_mcontext.fpregs);
+    u->uc_mcontext.fpregs = ucp + 236;    // magic offset of fpregs in an actual i386 u_context
+    fpu_savenv(emu, (void*)u->uc_mcontext.fpregs, 1);   // it seems getcontext only save fpu env, not fpu regs
     // get signal mask
     sigprocmask(SIG_SETMASK, NULL, (sigset_t*)&u->uc_sigmask);
     // ensure uc_link is properly initialized
@@ -1417,7 +1416,7 @@ EXPORT int my_setcontext(x86emu_t* emu, void* ucp)
     R_SS = u->uc_mcontext.gregs[REG_SS];
     // set FloatPoint status
     if(u->uc_mcontext.fpregs)
-        load_fpreg(emu, u->uc_mcontext.fpregs);
+        fpu_loadenv(emu, (void*)u->uc_mcontext.fpregs, 1);
     // set signal mask
     sigprocmask(SIG_SETMASK, (sigset_t*)&u->uc_sigmask, NULL);
     // set uc_link

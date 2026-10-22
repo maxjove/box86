@@ -187,6 +187,7 @@
 #() iFuu
 #() iFup
 #() iFli
+#() iFLL
 #() iFLp
 #() iFpw
 #() iFpi
@@ -491,6 +492,7 @@
 #() iFpOu
 #() iFpPU
 #() iFpPp
+#() iFpPP
 #() iFpGG
 #() iFSpi
 #() iFSpL
@@ -1297,6 +1299,7 @@
 #() iFpupup
 #() iFpuppu
 #() iFpuppp
+#() iFpuPpp
 #() iFpUiUi
 #() iFplluu
 #() iFpLlpp
@@ -1332,6 +1335,7 @@
 #() iFppppL
 #() iFppppp
 #() iFpppGp
+#() iFpPPpp
 #() IFppIII
 #() uFEippp
 #() uFEpipp
@@ -1587,6 +1591,7 @@
 #() iFiiiuwp
 #() iFiuiipi
 #() iFiuUuUu
+#() iFipiipi
 #() iFipipuu
 #() iFipuIup
 #() iFipupup
@@ -2418,8 +2423,7 @@
 #defined(HAVE_LD80BITS) DFDD
 #defined(HAVE_LD80BITS) DFDp
 #defined(HAVE_LD80BITS) DFppi
-#defined(HAVE_LD80BITS) DFppu
-#defined(HAVE_LD80BITS) DFppip
+#defined(HAVE_LD80BITS) DFppp
 #defined(HAVE_LD80BITS) iFDipppL
 #defined(HAVE_LD80BITS) vFppippDDC
 #!defined(HAVE_LD80BITS) iFK
@@ -2429,8 +2433,7 @@
 #!defined(HAVE_LD80BITS) KFKp
 #!defined(HAVE_LD80BITS) KFpp
 #!defined(HAVE_LD80BITS) KFppi
-#!defined(HAVE_LD80BITS) KFppu
-#!defined(HAVE_LD80BITS) KFppip
+#!defined(HAVE_LD80BITS) KFppp
 #!defined(HAVE_LD80BITS) iFKipppL
 #!defined(HAVE_LD80BITS) vFppippKKC
 #() iFEvpp -> iFEpp
@@ -3226,6 +3229,7 @@ wrappedlibc:
 - iFppL:
 - iFppp:
   - _IO_vfscanf
+  - execvpe
 - iFppV:
   - __isoc23_fscanf
   - __isoc23_sscanf
@@ -3245,7 +3249,8 @@ wrappedlibc:
   - __isoc23_strtoull
 - KFppi:
   - __strtold_internal
-- KFppu:
+- KFppp:
+  - __strtold_l
   - strtold_l
 - lFipL:
   - __read_nocancel
@@ -3266,6 +3271,7 @@ wrappedlibc:
   - ptrace
 - iFipii:
 - iFipuu:
+  - sendmmsg
 - iFippi:
   - __fstatat64_time64
 - iFippL:
@@ -3286,8 +3292,6 @@ wrappedlibc:
   - __isoc23_strtoll_l
 - UFppip:
   - __isoc23_strtoull_l
-- KFppip:
-  - __strtold_l
 - lFipiI:
 - lFpupp:
 - vFpLLpp:
@@ -3378,6 +3382,10 @@ wrappedlibglu:
   - gluNurbsCallback
   - gluQuadricCallback
   - gluTessCallback
+wrappedlibglx:
+- pFp:
+  - glXGetProcAddress
+  - glXGetProcAddressARB
 wrappedlibharfbuzz:
 wrappedlibibus:
 - vFpippp:
@@ -3660,6 +3668,7 @@ wrappedlibpthread:
   - pthread_mutex_timedlock
   - pthread_once
   - pthread_setname_np
+  - sem_timedwait
 - vFppp:
   - _pthread_cleanup_push
   - _pthread_cleanup_push_defer
@@ -3691,6 +3700,7 @@ wrappedlibrt:
   - aio_cancel
 - iFupp:
   - timer_create
+- iFiipp:
 - iFipip:
   - lio_listio
 wrappedlibsm:
@@ -4824,6 +4834,8 @@ wrappedvulkan:
   - vkDestroySurfaceKHR
   - vkDestroySwapchainKHR
   - vkDestroyValidationCacheEXT
+  - vkDestroyVideoSessionKHR
+  - vkDestroyVideoSessionParametersKHR
 - vFppp:
   - vkDestroyDebugUtilsMessengerEXT
 - vFpPp:
@@ -4850,12 +4862,15 @@ wrappedvulkan:
   - vkQueueSubmit2
   - vkQueueSubmit2KHR
 - iFpUup:
+  - vkBindVideoSessionMemoryKHR
   - vkGetDisplayPlaneCapabilitiesKHR
 - iFpUpP:
   - vkGetPastPresentationTimingGOOGLE
 - iFpppp:
   - vkCreateDebugReportCallbackEXT
   - vkCreateDebugUtilsMessengerEXT
+  - vkCreateVideoSessionKHR
+  - vkCreateVideoSessionParametersKHR
   - vkCreateWaylandSurfaceKHR
 - iFpPpp:
   - vkAllocateMemory

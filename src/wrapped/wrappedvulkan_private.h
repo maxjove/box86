@@ -433,7 +433,7 @@ GO(vkReleaseFullScreenExclusiveModeEXT, iFpU)
 GO(vkGetDeviceGroupSurfacePresentModes2EXT, iFpPp)
 
 // VK_EXT_calibrated_timestamps
-GO(vkGetCalibratedTimestampsEXT, iFpuppp)
+GO(vkGetCalibratedTimestampsEXT, iFpuPpp)
 GO(vkGetPhysicalDeviceCalibrateableTimeDomainsEXT, iFppp)
 
 // VK_EXT_sample_locations
@@ -661,3 +661,26 @@ GO(vkCmdBindIndexBuffer2KHR, vFpUUUu)
 GO(vkGetDeviceImageSubresourceLayoutKHR, vFpPP)
 GO(vkGetImageSubresourceLayout2KHR, vFpUPP)
 GO(vkGetRenderingAreaGranularityKHR, vFpPp)
+
+// VK_KHR_calibrated_timestamps
+GO(vkGetCalibratedTimestampsKHR, iFpuPpp)
+GO(vkGetPhysicalDeviceCalibrateableTimeDomainsKHR, iFppp)
+
+// VK_KHR_video_queue
+GOM(vkBindVideoSessionMemoryKHR, iFEpUup)
+GO(vkCmdBeginVideoCodingKHR, vFpP)
+GO(vkCmdControlVideoCodingKHR, vFpP)
+GO(vkCmdEndVideoCodingKHR, vFpP)
+GOM(vkCreateVideoSessionKHR, iFEpppp)
+GOM(vkCreateVideoSessionParametersKHR, iFEpppp)
+GOM(vkDestroyVideoSessionKHR, vFEpUp)
+GOM(vkDestroyVideoSessionParametersKHR, vFEpUp)
+GO(vkGetPhysicalDeviceVideoCapabilitiesKHR, iFpPp)
+GO(vkGetPhysicalDeviceVideoFormatPropertiesKHR, iFpPpp)
+GO(vkGetVideoSessionMemoryRequirementsKHR, iFpUpp)
+GO(vkUpdateVideoSessionParametersKHR, iFpUp)
+
+//VK_KHR_video_encode_queue
+GO(vkCmdEncodeVideoKHR, vFpP)
+GO(vkGetEncodedVideoSessionParametersKHR, iFpPPpp)
+GO(vkGetPhysicalDeviceVideoEncodeQualityLevelPropertiesKHR, iFpPP)

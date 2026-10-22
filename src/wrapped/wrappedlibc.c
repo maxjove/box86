@@ -1197,29 +1197,6 @@ EXPORT void my__ITM_registerTMCloneTable(x86emu_t* emu, void* p, uint32_t s) { (
 EXPORT void my__ITM_deregisterTMCloneTable(x86emu_t* emu, void* p) { (void)emu; (void)p; }
 
 
-struct i386_stat {
-	uint64_t  st_dev;
-	uint32_t  __pad1;
-	uint32_t  st_ino;
-	uint32_t  st_mode;
-	uint32_t  st_nlink;
-	uint32_t  st_uid;
-	uint32_t  st_gid;
-	uint64_t  st_rdev;
-	uint32_t  __pad2;
-	int32_t   st_size;
-	int32_t   st_blksize;
-	int32_t   st_blocks;
-	int32_t   st_atime_sec;
-	uint32_t  st_atime_nsec;
-	int32_t   st_mtime_sec;
-	uint32_t  st_mtime_nsec;
-	int32_t   st_ctime_sec;
-	uint32_t  st_ctime_nsec;
-	uint32_t  __unused4;
-	uint32_t  __unused5;
-} __attribute__((packed));
-
 static int FillStatFromStat64(int vers, const struct stat64 *st64, void *st32)
 {
     struct i386_stat *i386st = (struct i386_stat *)st32;
@@ -1264,23 +1241,21 @@ static int FillStatFromStat64(int vers, const struct stat64 *st64, void *st32)
         errno = EOVERFLOW;
         return -1;
     }
-    i386st->st_atime_sec = st64->st_atim.tv_sec;
+    i386st->st_atime_sec  = st64->st_atim.tv_sec;
     i386st->st_atime_nsec = st64->st_atim.tv_nsec;
-    i386st->st_mtime_sec = st64->st_mtim.tv_sec;
+    i386st->st_mtime_sec  = st64->st_mtim.tv_sec;
     i386st->st_mtime_nsec = st64->st_mtim.tv_nsec;
-    i386st->st_ctime_sec = st64->st_ctim.tv_sec;
+    i386st->st_ctime_sec  = st64->st_ctim.tv_sec;
     i386st->st_ctime_nsec = st64->st_ctim.tv_nsec;
-    i386st->__unused4 = 0;
-    i386st->__unused5 = 0;
+    i386st->st_ino = 0;
     return 0;
 }
 
-#ifdef ANDROID
 EXPORT int my_stat(char* path, void* buf)
 {
     struct stat64 st;
     int r = stat64(path, &st);
-    UnalignStat64(&st, buf);
+    FillStatFromStat64(3, &st, buf);
     return r;
 }
 
@@ -1288,7 +1263,7 @@ EXPORT int my_fstat(int fd, void* buf)
 {
     struct stat64 st;
     int r = fstat64(fd, &st);
-    UnalignStat64(&st, buf);
+    FillStatFromStat64(3, &st, buf);
     return r;
 }
 
@@ -1296,10 +1271,9 @@ EXPORT int my_lstat(char* path, void* buf)
 {
     struct stat64 st;
     int r = lstat64(path, &st);
-    UnalignStat64(&st, buf);
+    FillStatFromStat64(3, &st, buf);
     return r;
 }
-#endif
 
 EXPORT int my___fxstat(x86emu_t *emu, int vers, int fd, void* buf)
 {
@@ -1486,6 +1460,21 @@ EXPORT int my_statfs64(const char* path, void* buf)
     return r;
 }
 
+EXPORT int my_fstatfs(int fd, void* buf)
+{
+    struct statfs st;
+    int r = fstatfs(fd, &st);
+    UnalignStatFS(&st, buf);
+    return r;
+}
+
+EXPORT int my_statfs(const char* path, void* buf)
+{
+    struct statfs st;
+    int r = statfs(path, &st);
+    UnalignStatFS(&st, buf);
+    return r;
+}
 
 #ifdef ANDROID
 typedef int (*__compar_d_fn_t)(const void*, const void*, void*);
@@ -1892,6 +1881,15 @@ EXPORT int32_t my_open(x86emu_t* emu, void* pathname, int32_t flags, uint32_t mo
         lseek(tmp, 0, SEEK_SET);
         return tmp;
     }
+    if(box86_maxcpu && (!strcmp(pathname, "/sys/devices/system/cpu/present") || !strcmp(pathname, "/sys/devices/system/cpu/online")) && (getNCpu()>=box86_maxcpu)) {
+        // special case for cpu present (to limit to box86_maxcpu cores)
+        int tmp = shm_open(TMP_CPUPRESENT, O_RDWR | O_CREAT, S_IRWXU);
+        if(tmp<0) return open(pathname, flags, mode); // error fallback
+        shm_unlink(TMP_CPUPRESENT);    // remove the shm file, but it will still exist because it's currently in use
+        CreateCPUPresentFile(tmp);
+        lseek(tmp, 0, SEEK_SET);
+        return tmp;
+    }
     if(isCpuTopology((const char*)pathname)!=-1) {
         int n = isCpuTopology((const char*)pathname);
         char buf[512];
@@ -2009,6 +2007,15 @@ EXPORT int32_t my_open64(x86emu_t* emu, void* pathname, int32_t flags, uint32_t 
         lseek(tmp, 0, SEEK_SET);
         return tmp;
     }
+    if(box86_maxcpu && (!strcmp(pathname, "/sys/devices/system/cpu/present") || !strcmp(pathname, "/sys/devices/system/cpu/online")) && (getNCpu()>=box86_maxcpu)) {
+        // special case for cpu present (to limit to box86_maxcpu cores)
+        int tmp = shm_open(TMP_CPUPRESENT, O_RDWR | O_CREAT, S_IRWXU);
+        if(tmp<0) return open64(pathname, flags, mode); // error fallback
+        shm_unlink(TMP_CPUPRESENT);    // remove the shm file, but it will still exist because it's currently in use
+        CreateCPUPresentFile(tmp);
+        lseek(tmp, 0, SEEK_SET);
+        return tmp;
+    }
     if(isCpuTopology((const char*)pathname)!=-1) {
         int n = isCpuTopology((const char*)pathname);
         char buf[512];
@@ -2084,8 +2091,8 @@ EXPORT FILE* my_fopen(x86emu_t* emu, const char* path, const char* mode)
         lseek(tmp, 0, SEEK_SET);
         return fdopen(tmp, mode);;
     }
-    if(box86_wine && (!strcmp(path, "/sys/devices/system/cpu/present") || !strcmp(path, "/sys/devices/system/cpu/online")) && (getNCpu()>=32)) {
-        // special case for cpu present (to limit to 64 cores)
+    if(box86_maxcpu && (!strcmp(path, "/sys/devices/system/cpu/present") || !strcmp(path, "/sys/devices/system/cpu/online")) && (getNCpu()>=box86_maxcpu)) {
+        // special case for cpu present (to limit to box86_maxcpu cores)
         int tmp = shm_open(TMP_CPUPRESENT, O_RDWR | O_CREAT, S_IRWXU);
         if(tmp<0) return fopen(path, mode); // error fallback
         shm_unlink(TMP_CPUPRESENT);    // remove the shm file, but it will still exist because it's currently in use
@@ -2160,8 +2167,8 @@ EXPORT FILE* my_fopen64(x86emu_t* emu, const char* path, const char* mode)
         lseek(tmp, 0, SEEK_SET);
         return fdopen(tmp, mode);;
     }
-    if(box86_wine && (!strcmp(path, "/sys/devices/system/cpu/present") || !strcmp(path, "/sys/devices/system/cpu/online")) && (getNCpu()>=32)) {
-        // special case for cpu present (to limit to 64 cores)
+    if(box86_maxcpu && (!strcmp(path, "/sys/devices/system/cpu/present") || !strcmp(path, "/sys/devices/system/cpu/online")) && (getNCpu()>=box86_maxcpu)) {
+        // special case for cpu present (to limit to box86_maxcpu cores)
         int tmp = shm_open(TMP_CPUPRESENT, O_RDWR | O_CREAT, S_IRWXU);
         if(tmp<0) return fopen64(path, mode); // error fallback
         shm_unlink(TMP_CPUPRESENT);    // remove the shm file, but it will still exist because it's currently in use
@@ -2565,6 +2572,62 @@ EXPORT int32_t my_execvp(x86emu_t* emu, const char* path, char* const argv[])
     // fullpath is gone, so the search will only be on PATH, not on BOX86_PATH (is that an issue?)
     return execvp(path, argv);
 }
+// execvpe should use PATH to search for the program first
+EXPORT int32_t my_execvpe(x86emu_t* emu, const char* path, char* const argv[], char* const envv[])
+{
+    // need to use BOX86_PATH / PATH here...
+    char* fullpath = ResolveFile(path, &my_context->box86_path);
+    // use fullpath...
+    int self = isProcSelf(fullpath, "exe");
+    int x86 = FileIsX86ELF(fullpath);
+    int x64 = my_context->box86path?FileIsX64ELF(path):0;
+    int script = (my_context->bashpath && FileIsShell(path))?1:0;
+    if(script && FileIsX64ELF(my_context->bashpath)) x64 = 1;
+    printf_log(LOG_DEBUG, "execvp(\"%s\", %p), IsX86=%d / fullpath=\"%s\"\n", path, argv, x86, fullpath);
+    if (x86 || x64 || script || self) {
+        // count argv...
+        int i=0;
+        while(argv[i]) ++i;
+        int toadd = script?2:1;
+        char** newargv = (char**)alloca((i+toadd+1)*sizeof(char*));
+        memset(newargv, 0, (i+toadd+1)*sizeof(char*));
+        newargv[0] = x64?emu->context->box64path:emu->context->box86path;
+        if(script) newargv[1] = emu->context->bashpath; // script needs to be launched with bash
+        for (int j=0; j<i; ++j)
+            newargv[j+1] = argv[j];
+        if(self) newargv[1] = emu->context->fullpath;
+        if(script) newargv[2] = emu->context->bashpath;
+        printf_log(LOG_DEBUG, " => execvp(\"%s\", %p [\"%s\", \"%s\"...:%d])\n", newargv[0], newargv, newargv[1], i?newargv[2]:"", i);
+        #ifdef PANDORA
+        int ret = execve(newargv[0], newargv, envv);
+        #else
+        int ret = execvpe(newargv[0], newargv, envv);
+        #endif
+        box_free(fullpath);
+        return ret;
+    }
+    #ifndef PANDORA
+    box_free(fullpath);
+    #endif
+    if((!strcmp(path + strlen(path) - strlen("/uname"), "/uname") || !strcmp(path, "uname"))
+     && argv[1] && (!strcmp(argv[1], "-m") || !strcmp(argv[1], "-p") || !strcmp(argv[1], "-i"))
+     && !argv[2]) {
+        // uname -m is redirected to box86 -m
+        path = my_context->box86path;
+        char *argv2[3] = { my_context->box86path, argv[1], NULL };
+        #ifdef PANDORA
+        return execve(fullpath, argv2, envv);
+        #else
+        return execvpe(path, argv2, envv);
+        #endif
+    }
+    #ifdef PANDORA
+    return execve(fullpath, argv, envv);
+    #else
+    // fullpath is gone, so the search will only be on PATH, not on BOX86_PATH (is that an issue?)
+    return execvpe(path, argv, envv);
+    #endif
+}
 
 // execvp should use PATH to search for the program first
 EXPORT int32_t my_posix_spawnp(x86emu_t* emu, pid_t* pid, const char* path, 
@@ -2778,6 +2841,34 @@ EXPORT int32_t my_fcntl(x86emu_t* emu, int32_t a, int32_t b, uint32_t d1, uint32
     return ret;    
 }
 EXPORT int32_t my___fcntl(x86emu_t* emu, int32_t a, int32_t b, uint32_t d1, uint32_t d2, uint32_t d3, uint32_t d4, uint32_t d5, uint32_t d6) __attribute__((alias("my_fcntl")));
+
+EXPORT int32_t my___fcntl_time64(x86emu_t* emu, int32_t a, int32_t b, uint32_t d1, uint32_t d2, uint32_t d3, uint32_t d4, uint32_t d5, uint32_t d6)
+{
+    (void)emu; (void)d2; (void)d3; (void)d4; (void)d5; (void)d6;
+    // Implemented starting glibc 2.14+
+    library_t* lib = my_lib;
+    if(!lib) return 0;
+    iFiiV_t f = dlsym(lib->w.lib, "__fcntl_time64");
+    if(b==F_SETFL)
+        d1 = of_convert(d1);
+    if(b==F_GETLK64 || b==F_SETLK64 || b==F_SETLKW64)
+    {
+        my_flock64_t fl;
+        AlignFlock64(&fl, (void*)d1);
+        int ret = f?f(a, b, &fl):fcntl(a, b, &fl);
+        UnalignFlock64((void*)d1, &fl);
+        return ret;
+    }
+    //TODO: check if better to use the syscall or regular fcntl?
+    //return syscall(__NR_fcntl64, a, b, d1);   // should be enough
+    int ret = f?f(a, b, d1):fcntl(a, b, d1);
+
+    if(b==F_GETFL && ret!=-1)
+        ret = of_unconvert(ret);
+
+    return ret;
+}
+
 
 EXPORT int32_t my_preadv64(x86emu_t* emu, int32_t fd, void* v, int32_t c, int64_t o)
 {
@@ -3339,7 +3430,16 @@ EXPORT int my_nanosleep(const struct timespec *req, struct timespec *rem)
 {
     if(!req)
         return 0;   // workaround for some strange calls
+    #ifdef __USE_TIME64_REDIRECTS
+    struct timespec t1, t2;
+    Timespec2Timespec64(&t1, req);
+    int ret = nanosleep(&t1, rem?(&t2):NULL);
+    if(rem)
+        Timespec642Timespec(rem, &t2);
+    return ret;
+    #else
     return nanosleep(req, rem);
+    #endif
 }
 
 #ifndef NOALIGN
@@ -3595,10 +3695,11 @@ EXPORT char my___libc_single_threaded = 0;
     "libm.so",              \
     "libbsd.so"
 #else
-#define NEEDED_LIBS   4,\
+#define NEEDED_LIBS   5,\
     "ld-linux.so.2",    \
     "libpthread.so.0",  \
     "librt.so.1",       \
+    "libm.so.6",        \
     "libbsd.so.0"
 #define NEEDED_LIBS_234 6,  \
     "ld-linux.so.2",        \

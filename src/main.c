@@ -51,6 +51,8 @@ int box86_dynarec_log = LOG_NONE;
 uintptr_t box86_pagesize;
 uintptr_t box86_load_addr = 0;
 int box86_showbt = 0;
+int box86_maxcpu = 0;
+int box86_maxcpu_immutable = 0;
 int box86_isglibc234 = 0;
 int box86_nosandbox = 0;
 int box86_malloc_hack = 0;
@@ -129,6 +131,7 @@ int box86_musl = 0;
 int box86_nopulse = 0;
 int box86_nogtk = 0;
 int box86_novulkan = 0;
+int box86_nocrashhandler = 0;
 #ifdef BAD_SIGNAL
 int box86_futex_waitv = 0;
 #else
@@ -571,6 +574,15 @@ void LoadLogEnv()
         if(!box86_libcef)
             printf_log(LOG_INFO, "Dynarec will not detect libcef\n");
     }
+    p = getenv("BOX86_NOCRASHHANDLER");
+    if(p) {
+        if(strlen(p)==1) {
+            if(p[0]>='0' && p[0]<='1')
+                box86_nocrashhandler = p[0]-'0';
+        }
+        if(box86_nocrashhandler)
+            printf_log(LOG_INFO, "Box86 will consider crashhnadler.so to not be present\n");
+    }
     p = getenv("BOX86_SDL2_JGUID");
     if(p) {
         if(strlen(p)==1) {
@@ -759,6 +771,19 @@ void LoadLogEnv()
         if(box86_showbt)
             printf_log(LOG_INFO, "Show Backtrace for signals\n");
     }
+    p = getenv("BOX86_MAXCPU");
+    if(p) {
+        int maxcpu = 0;
+        if(sscanf(p, "%d", &maxcpu)==1)
+            box86_maxcpu = maxcpu;
+        if(box86_maxcpu<0)
+            box86_maxcpu = 0;
+        if(box86_maxcpu) {
+            printf_log(LOG_INFO, "Will not expose more than %d cpu cores\n", box86_maxcpu);
+        } else {
+            printf_log(LOG_INFO, "Will not limit the number of cpu cores exposed\n");
+        }
+    }
     box86_pagesize = sysconf(_SC_PAGESIZE);
     if(!box86_pagesize)
         box86_pagesize = 4096;
@@ -888,8 +913,8 @@ void PrintFlags() {
     printf(" BOX86_LIBGL=libXXXX set the name (and optionnaly full path) for libGL.so.1\n");
     printf(" BOX86_LD_PRELOAD=XXXX[:YYYYY] force loading XXXX (and YYYY...) libraries with the binary\n");
     printf(" BOX86_ALLOWMISSINGLIBS with 1 to allow to continue even if a lib is missing (unadvised, will probably crash later)\n");
-    printf(" BOX64_PREFER_EMULATED=1 to prefer emulated libs first (execpt for glibc, alsa, pulse, GL, vulkan and X11)\n");
-    printf(" BOX64_PREFER_WRAPPED if box86 will use wrapped libs even if the lib is specified with absolute path\n");
+    printf(" BOX86_PREFER_EMULATED=1 to prefer emulated libs first (execpt for glibc, alsa, pulse, GL, vulkan and X11)\n");
+    printf(" BOX86_PREFER_WRAPPED if box86 will use wrapped libs even if the lib is specified with absolute path\n");
     printf(" BOX86_NOPULSE=1 to disable the loading of pulseaudio libs\n");
     printf(" BOX86_NOGTK=1 to disable the loading of wrapped gtk libs\n");
     printf(" BOX86_NOVULKAN=1 to disable the loading of wrapped vulkan libs\n");
@@ -949,6 +974,10 @@ void LoadEnvVars(box86context_t *context)
         AddPath("/mnt/utmp/codeblocks/usr/lib/i386-linux-gnu", &context->box86_ld_lib, 1);
     if(FileExist("/mnt/utmp/box86/lib/i386-linux-gnu", 0))
         AddPath("/mnt/utmp/box86/lib/i386-linux-gnu", &context->box86_ld_lib, 1);
+    if(FileExist("/mnt/utmp/codeblocks/usr/lib/box86-i386-linux-gnu", 0))
+        AddPath("/mnt/utmp/codeblocks/usr/lib/box86-i386-linux-gnu", &context->box86_ld_lib, 1);
+    if(FileExist("/mnt/utmp/box86/lib/box86-i386-linux-gnu", 0))
+        AddPath("/mnt/utmp/box86/lib/box86-i386-linux-gnu", &context->box86_ld_lib, 1);
     //TODO: add relative path to box86 location
 #endif
 #ifndef TERMUX
@@ -966,11 +995,17 @@ void LoadEnvVars(box86context_t *context)
         AddPath("/usr/lib/i686-pc-linux-gnu", &context->box86_ld_lib, 1);
     if(FileExist("/usr/lib32", 0))
         AddPath("/usr/lib32", &context->box86_ld_lib, 1);
+    if(FileExist("/lib/box86-i386-linux-gnu", 0))
+        AddPath("/lib/box86-i386-linux-gnu", &context->box86_ld_lib, 1);
+    if(FileExist("/usr/lib/box86-i386-linux-gnu", 0))
+        AddPath("/usr/lib/box86-i386-linux-gnu", &context->box86_ld_lib, 1);
 #else
     if(FileExist("/data/data/com.termux/files/usr/lib/i386-linux-gnu", 0))
         AddPath("/data/data/com.termux/files/usr/lib/i386-linux-gnu", &context->box86_ld_lib, 1);
     if(FileExist("/data/data/com.termux/files/usr/lib/i686-linux-gnu", 0))
         AddPath("/data/data/com.termux/files/usr/lib/i686-linux-gnu", &context->box86_ld_lib, 1);
+    if(FileExist("/data/data/com.termux/files/usr/lib/box86-i386-linux-gnu", 0))
+        AddPath("/data/data/com.termux/files/usr/lib/box86-i386-linux-gnu", &context->box86_ld_lib, 1);
 #endif
     if(getenv("LD_LIBRARY_PATH"))
         PrependList(&context->box86_ld_lib, getenv("LD_LIBRARY_PATH"), 1);   // in case some of the path are for x86 world
@@ -1306,7 +1341,7 @@ int main(int argc, const char **argv, char **env)
 
     // check BOX86_LOG debug level
     LoadLogEnv();
-    if(!getenv("BOX64_NORCFILES")) {
+    if(!getenv("BOX86_NORCFILES")) {
         load_rcfiles();
     }
     char* bashpath = NULL;
@@ -1424,8 +1459,10 @@ int main(int argc, const char **argv, char **env)
         my_context->box64path = getenv("BOX86_BOX64");
         if(!my_context->box64path) {
             my_context->box64path = box_strdup(my_context->box86path);
-            char* p = strrchr(my_context->box64path, '8');  // get the 8 of box86
-            p[0] = '6'; p[1] = '4'; // change 86 to 64
+            if (strstr(my_context->box64path, "box86")) {
+                char* p = strrchr(my_context->box64path, '8');  // get the 8 of box86
+                p[0] = '6'; p[1] = '4'; // change 86 to 64
+            }
         }
         if(!FileExist(my_context->box64path, IS_FILE)) {
             box_free(my_context->box64path);
@@ -1568,6 +1605,9 @@ int main(int argc, const char **argv, char **env)
     for(int i=1; i<my_context->argc; ++i) {
         my_context->argv[i] = box_strdup(argv[i+nextarg]);
         printf_log(LOG_INFO, "argv[%i]=\"%s\"\n", i, my_context->argv[i]);
+    }
+    if(box86_wine) {
+        box86_maxcpu_immutable = 1; // cannot change once wine is loaded
     }
     if(box86_nosandbox)
     {

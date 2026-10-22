@@ -52,9 +52,11 @@ ENTRYSTRING_(BOX86_BOX64, box64)                        \
 ENTRYSTRING_(BOX86_LD_PRELOAD, ld_preload)              \
 ENTRYBOOL(BOX86_NOSANDBOX, box86_nosandbox)             \
 ENTRYBOOL(BOX86_LIBCEF, box86_libcef)                   \
+ENTRYBOOL(BOX86_NOCRASHHANDLER, box86_nocrashhandler)   \
 ENTRYBOOL(BOX86_SDL2_JGUID, box86_sdl2_jguid)           \
 ENTRYBOOL(BOX86_MUTEX_ALIGNED, box86_mutex_aligned)     \
 ENTRYINT(BOX86_MALLOC_HACK, box86_malloc_hack, 0, 2, 2) \
+ENTRYINTPOS(BOX86_MAXCPU, new_maxcpu)                   \
 
 #ifdef HAVE_TRACE
 #define SUPER2()                                        \
@@ -109,7 +111,7 @@ IGNORE(BOX86_DYNAREC_X87DOUBLE)                                     \
 IGNORE(BOX86_DYNAREC_FASTNAN)                                       \
 IGNORE(BOX86_DYNAREC_FASTROUND)                                     \
 IGNORE(BOX86_DYNAREC_SAFEFLAGS)                                     \
-IGNORE(BOX64_DYNAREC_CALLRET)                                       \
+IGNORE(BOX86_DYNAREC_CALLRET)                                       \
 IGNORE(BOX86_DYNAREC_HOTPAGE)                                       \
 IGNORE(BOX86_DYNAREC_FASTPAGE)                                      \
 IGNORE(BOX86_DYNAREC_WAIT)                                          \
@@ -399,6 +401,7 @@ void ApplyParams(const char* name, path_collection_t* preload)
         return;
     static const char* old_name = NULL;
     int new_cycle_log = cycle_log;
+    int new_maxcpu = box86_maxcpu;
     if(old_name && !strcmp(name, old_name))
         return;
     old_name = name;
@@ -442,6 +445,13 @@ void ApplyParams(const char* name, path_collection_t* preload)
         cycle_log = new_cycle_log;
         initCycleLog(my_context);
     }
+    if(!box86_maxcpu_immutable) {
+        if(new_maxcpu!=box86_maxcpu && box86_maxcpu && box86_maxcpu<new_maxcpu) {
+            printf_log(LOG_INFO, "Not applying BOX86_MAXCPU=%d because a lesser value is already active: %d\n", new_maxcpu, box86_maxcpu);
+        } else
+            box86_maxcpu = new_maxcpu;
+    } else if(new_maxcpu!=box86_maxcpu)
+        printf_log(LOG_INFO, "Not applying BOX86_MAXCPU=%d because it's too late\n", new_maxcpu);
     if(param->is_ld_library_path_present) AppendList(&my_context->box86_ld_lib, param->ld_library_path, 1);
     if(param->is_box86_path_present) AppendList(&my_context->box86_path, param->box86_path, 1);
     if(param->is_trace_file_present) {

@@ -53,12 +53,12 @@ x86emu_t* x86emu_fork(x86emu_t* emu, int forktype)
         // error...
     } else if(v!=0) {  
         // execute atforks parent functions
-        for (int i=0; i<my_context->atfork_sz; --i)
+        for (int i=0; i<my_context->atfork_sz; ++i)
             if(my_context->atforks[i].parent)
                 EmuCall(emu, my_context->atforks[i].parent);
     } else if(v==0) {
         // execute atforks child functions
-        for (int i=0; i<my_context->atfork_sz; --i)
+        for (int i=0; i<my_context->atfork_sz; ++i)
             if(my_context->atforks[i].child)
                 EmuCall(emu, my_context->atforks[i].child);
     }
@@ -198,6 +198,8 @@ void x86Int3(x86emu_t* emu)
                     perr = 3;
                 } else  if(strstr(s, "strcasecmp")==s || strstr(s, "__strcasecmp")==s) {
                     snprintf(buff, 256, "%04d|%p: Calling %s(\"%s\", \"%s\")", tid, *(void**)(R_ESP), s, *(char**)(R_ESP+4), *(char**)(R_ESP+8));
+                } else  if(strstr(s, "wcsncasecmp")==s) {
+                    snprintf(buff, 256, "%04d|%p: Calling %s(\"%S\", \"%S\", %d)", tid, *(void**)(R_ESP), s, *(wchar_t**)(R_ESP+4), *(wchar_t**)(R_ESP+8), *(int*)(R_ESP+12));
                 } else  if(strstr(s, "gtk_signal_connect_full")) {
                     snprintf(buff, 256, "%04d|%p: Calling %s(%p, \"%s\", %p, %p, %p, %p, %d, %d)", tid, *(void**)(R_ESP), "gtk_signal_connect_full", *(void**)(R_ESP+4), *(char**)(R_ESP+8), *(void**)(R_ESP+12), *(void**)(R_ESP+16), *(void**)(R_ESP+20), *(void**)(R_ESP+24), *(int32_t*)(R_ESP+28), *(int32_t*)(R_ESP+32));
                 } else  if(strstr(s, "strcmp")==s || strstr(s, "__strcmp")==s) {
@@ -268,6 +270,8 @@ void x86Int3(x86emu_t* emu)
                     snprintf(buff, 256, "%04d|%p: Calling %s(%p, \"%s\")", tid, *(void**)(R_ESP), s, *(void**)(R_ESP+4), *(char**)(R_ESP+8));
                 } else  if(strstr(s, "glXGetProcAddress")==s) {
                     snprintf(buff, 256, "%04d|%p: Calling %s(\"%s\")", tid, *(void**)(R_ESP), s, *(char**)(R_ESP+4));
+                } else if (!strcmp(s, "glTexImage2D")) {
+                    snprintf(buff, 256, "%04d|%p: Calling %s(0x%x, %d, 0x%x, %d, %d, %d, 0x%x, 0x%x, %p)", tid, *(void**)(R_ESP), s, *(uint32_t*)(R_ESP+4), *(int*)(R_ESP+8), *(int*)(R_ESP+12), *(int*)(R_ESP+16), *(int*)(R_ESP+20), *(int*)(R_ESP+24), *(uint32_t*)(R_ESP+28), *(uint32_t*)(R_ESP+32), *(void**)(R_ESP+36));
                 } else  if(strstr(s, "sscanf")==s) {
                     snprintf(buff, 256, "%04d|%p: Calling %s(\"%s\", \"%s\", ...)", tid, *(void**)(R_ESP), s, *(char**)(R_ESP+4), *(char**)(R_ESP+8));
                 } else  if(!strcmp(s, "vsscanf")) {
@@ -298,6 +302,10 @@ void x86Int3(x86emu_t* emu)
                 } else  if(strstr(s, "__tls_get_addr")) {
                     pu32 = *(uint32_t**)(R_ESP+4);
                     snprintf(buff, 256, "%04d|%p: Calling %s(%p[%d, %d])", tid, *(void**)(R_ESP), s, pu32, pu32[0], pu32[1]);
+                } else if (!strcmp(s, "FT_Outline_Get_CBox")) {
+                    pu32 = *(uint32_t**)(R_ESP+8);
+                    snprintf(buff, 256, "%04d|%p: Calling %s(%p, %p)", tid, *(void**)(R_ESP), s, *(void**)(R_ESP+4), *(void**)(R_ESP+8));
+                    post = 7;
                 } else if (!strcmp(s, "XDrawImageString")) {
                     snprintf(buff, 256, "%04d|%p: Calling %s(%p, %p, %p, %i, %i, %p\"%s\", %d)", tid, *(void**)(R_ESP), s, *(void**)(R_ESP+4), *(void**)(R_ESP+8), *(void**)(R_ESP+12), *(int*)(R_ESP+16), *(int*)(R_ESP+20), *(char**)(R_ESP+24), *(char**)(R_ESP+24), *(int*)(R_ESP+28));
                 } else {
@@ -328,6 +336,8 @@ void x86Int3(x86emu_t* emu)
                             }
                             break;
                     case 6: snprintf(buff2, 63, "(%S)", pu32?((wchar_t*)pu32):L"nil");
+                            break;
+                    case 7: snprintf(buff2, 63, " [%d / %d / %d /%d]", pu32[0], pu32[1], pu32[2], pu32[3]);
                             break;
                 }
                 if(perr==1 && ((int)R_EAX)<0)

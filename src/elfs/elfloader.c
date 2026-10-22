@@ -1808,7 +1808,7 @@ static int my_dl_iterate_phdr_##A(struct dl_phdr_info* a, size_t b, void* c)    
 {                                                                                   \
     if(!a->dlpi_name)                                                               \
         return 0;                                                                   \
-    if(!a->dlpi_name[0]) /*don't send informations about box86 itself*/             \
+    if(!a->dlpi_name[0]) /*don't send information about box86 itself*/             \
         return 0;                                                                   \
     return RunFunctionFmt(my_dl_iterate_phdr_fct_##A, "pLp", a, b, c);  \
 }
@@ -2033,6 +2033,9 @@ kh_defaultversion_t* GetWeakDefaultVersion(elfheader_t* h)
     return h?h->weakdefver:NULL;
 }
 
+#ifndef STT_GNU_IFUNC
+#define STT_GNU_IFUNC 10
+#endif
 
 uintptr_t pltResolver = ~(uintptr_t)0;
 EXPORT void PltResolver(x86emu_t* emu)
@@ -2075,6 +2078,11 @@ EXPORT void PltResolver(x86emu_t* emu)
         if(sym_elf && sym_elf!=my_context->elfs[0] && !sym_elf->init_done) {
             printf_dump(LOG_DEBUG, "symbol %s from %s but elf not initialized yet, run Init now (from %s)\n", symname, ElfName(sym_elf), ElfName(h));
             RunElfInitPltResolver(sym_elf, emu);
+        }
+        if(sym_elf && sym && ((sym->st_info&0xf)==STT_GNU_IFUNC)) {
+            // this is an IFUNC, needs to evaluate the function first!
+            printf_dump(LOG_DEBUG, "            Indirect function, will call the resolver now at %p\n", (void*)offs);
+            offs = RunFunction(offs, 0);
         }
         offs = (uintptr_t)getAlternate((void*)offs);
 

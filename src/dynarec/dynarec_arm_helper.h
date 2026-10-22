@@ -316,7 +316,7 @@
 #define IFXN(A, B)  if((dyn->insts[ninst].x86.gen_flags&(A) && !(dyn->insts[ninst].x86.gen_flags&(B))))
 
 // Generate FCOM with s1 and s2 scratch regs (the VCMP is already done)
-#define FCOM(s1, s2)    \
+#define FCOM(s1, s2)                                                            \
     VMRS_APSR();    /* 0b0100011100000000 */                                    \
     LDRH_IMM8(s1, xEmu, offsetof(x86emu_t, sw));   /*offset is 8bits right?*/   \
     BIC_IMM8(s1, s1, 0b01000111, 12);                                           \
@@ -327,7 +327,7 @@
     STRH_IMM8(s1, xEmu, offsetof(x86emu_t, sw))
 
 // Generate FCOMI with s1 and s2 scratch regs (the VCMP is already done)
-#define FCOMI(s1, s2)    \
+#define FCOMI(s1, s2)                                                       \
     IFX(X_CF|X_PF|X_ZF|X_PEND) {                                            \
         VMRS_APSR();    /* 0b111 */                                         \
         BIC_IMM8(xFlags, xFlags, 0b1000101, 0);                             \
@@ -335,12 +335,10 @@
         ORR_IMM8_COND(cEQ, xFlags, xFlags, 0b01000000, 0); /* zero */       \
         ORR_IMM8_COND(cMI, xFlags, xFlags, 0b00000001, 0); /* less than */  \
         /* greater than leave 0 */                                          \
-    }                                                                       \
-    SET_DFNONE(s1);                                                         \
-    IFX(X_OF|X_AF|X_SF|X_PEND) {                                            \
         /* clear 0b100010010000 */                                          \
         BIC_IMM8(xFlags, xFlags, 0b10001001, 14);                           \
     }                                                                       \
+    SET_DFNONE(s1);                                                         \
 
 
 #if STEP == 0

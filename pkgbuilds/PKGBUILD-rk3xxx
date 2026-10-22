@@ -13,6 +13,7 @@ provides=("${pkgname%-git}" "${pkgname%-rk3xxx-git}-git" "${pkgname%-rk3xxx-git}
 conflicts=("${pkgname%-git}" "${pkgname%-rk3xxx-git}-git" "${pkgname%-rk3xxx-git}")
 source=('git+https://github.com/ptitSeb/box86')
 md5sums=('SKIP')
+_rkmodel=`tr -d '\0' < /proc/device-tree/compatible`
 
 pkgver() {
 	cd "$srcdir/${pkgname%-rk3xxx-git}"
@@ -22,7 +23,7 @@ pkgver() {
 prepare() {
 	cd "${srcdir}/${pkgname%-rk3xxx-git}"
 	# Check for RockChip version number
-	if [[ ${_rkmodel} =~ "rk3288"]]; then
+	if [[ ${_rkmodel} =~ "rk3288" ]]; then
 		_rksuffix=3288
 	elif [[ ${_rkmodel} =~ "rk3399" ]]; then
 		_rksuffix=3399	
